@@ -79,3 +79,18 @@ cd SecurityTestAssignment
 ```
 
 Access ```http://localhost:8080/api/books```
+
+
+Login credentials for "EMPLOYEE":
+
+```
+userName: "employee"
+password: "password"
+```
+
+Login credentials for "ADMIN":
+
+```
+userName: "admin"
+password: "password"
+```
