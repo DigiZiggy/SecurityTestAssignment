@@ -1,7 +1,7 @@
 Spring Security Test Assignment
 ===============================
 
-REST API backend with authorization and authentication.
+REST API backend with authorization and authentication. Spring MVC used, because of front end implementation plans.
 
 ## Project description
 
@@ -45,6 +45,7 @@ the name of the lender, the book that has passed its due date.
 - Java 11
 - REST API
 - HyperSQL
+- Spring MVC
 - Spring Security
 - JUnit
 
