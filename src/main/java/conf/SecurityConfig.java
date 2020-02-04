@@ -1,5 +1,8 @@
 package conf;
 
+import conf.security.ApiAuthenticationFilter;
+import conf.security.handlers.ApiAccessDeniedHandler;
+import conf.security.handlers.ApiEntryPoint;
 import conf.security.handlers.ApiLogoutSuccessHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
@@ -9,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -19,7 +23,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         http.csrf().disable();
 
-        http.authorizeRequests()
+        http
+//                .httpBasic().and()    // For easy Authorization testing with Postman
+                .authorizeRequests()
                 .antMatchers("/api/logout").permitAll()
                 .antMatchers("/api/login").permitAll()
                 .antMatchers(HttpMethod.GET, "/api/books").permitAll()
@@ -31,9 +37,22 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.DELETE, "/api/books/**").hasRole("ADMIN")
                 .antMatchers("/api/**").authenticated();
 
-        http.formLogin();
+        http.exceptionHandling()
+                .authenticationEntryPoint(new ApiEntryPoint());
+
+        http.exceptionHandling()
+                .accessDeniedHandler(new ApiAccessDeniedHandler());
+
+        var apiLoginFilter = new ApiAuthenticationFilter(
+                authenticationManager(), "/api/login");
+
+        http.addFilterAfter(apiLoginFilter, LogoutFilter.class);
+
         http.logout().logoutUrl("/api/logout");
         http.logout().logoutSuccessHandler(new ApiLogoutSuccessHandler());
+
+//        For easy development purposes
+//        http.formLogin();
     }
 
     @Override
@@ -41,16 +60,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         builder.inMemoryAuthentication()
                 .passwordEncoder(new BCryptPasswordEncoder())
-                .withUser("user")
-                .password("$2a$10$61Z3nafWrPSIcwiP7f62Gurt5Q5OnW6efRhbVGs6aiLcbJ0Yqqlaa")
-                .roles("USER")
-                .and()
                 .withUser("employee")
                 .password("$2a$10$61Z3nafWrPSIcwiP7f62Gurt5Q5OnW6efRhbVGs6aiLcbJ0Yqqlaa")
-                .roles("USER", "EMPLOYEE")
+                .roles("EMPLOYEE")
                 .and()
                 .withUser("admin")
                 .password("$2a$10$61Z3nafWrPSIcwiP7f62Gurt5Q5OnW6efRhbVGs6aiLcbJ0Yqqlaa")
-                .roles("USER", "EMPLOYEE", "ADMIN");
+                .roles("EMPLOYEE", "ADMIN");
     }
 }

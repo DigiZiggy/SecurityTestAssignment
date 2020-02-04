@@ -15,12 +15,15 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.logout;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.setup.SharedHttpSessionConfigurer.sharedHttpSession;
 
@@ -44,35 +47,44 @@ public class SecurityIntegrationTest {
     }
 
     @Test
-    public void apiHomeDoesNotNeedAuthentication() throws Exception {
+    public void userCannotAccessLendersInDebt() throws Exception {
+        mvc.perform(get("/api/users/debts"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void employeeCanSeeMoreInfoThanUser() throws Exception {
+        mvc.perform(get("/api/books/1"))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(get("/api/books/1").with(user("employee").roles("EMPLOYEE")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void userCannotSeeLenders() throws Exception {
+        mvc.perform(get("/api/users"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void apiBooksDoesNotNeedAuthentication() throws Exception {
         mvc.perform(get("/api/books"))
                 .andExpect(status().isOk());
     }
 
     @Test
-    public void redirectsToLoginForm() throws Exception {
-        mvc.perform(get("/api/users"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/login"));
+    public void employeeCanSeeLenders() throws Exception {
+        mvc.perform(get("/api/users").with(user("employee").roles("EMPLOYEE")))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/users/1").with(user("employee").roles("EMPLOYEE")))
+                .andExpect(status().isOk());
     }
 
     @Test
-    public void canLoginWithCorrectPassword() throws Exception {
-        mvc.perform(formLogin("/login").user("user").password("password"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/"));
-
-        mvc.perform(formLogin("/login").user("user").password("wrong_pass"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login?error"));
-    }
-
-    @Test
-    public void employeeCanSeeMoreInfo() throws Exception {
-        mvc.perform(get("/api/books/1").with(user("user").roles("USER")))
-                .andExpect(status().isForbidden());
-
-        mvc.perform(get("/api/books/1").with(user("employee").roles("EMPLOYEE")))
+    public void employeeCanSeeLendersInDebt() throws Exception {
+        mvc.perform(get("/api/users/debts").with(user("employee").roles("EMPLOYEE")))
                 .andExpect(status().isOk());
     }
 
@@ -87,7 +99,7 @@ public class SecurityIntegrationTest {
         mvc.perform(logout("/api/logout"));
 
         mvc.perform(get("/api/users"))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -95,4 +107,43 @@ public class SecurityIntegrationTest {
         mvc.perform(logout("/api/logout"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    public void canLoginWithJsonRequest() throws Exception {
+        mvc.perform(get("/api/users"))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(post("/api/login")
+                .contentType(MediaType.APPLICATION_JSON).content("bad_data"))
+                .andExpect(status().isUnauthorized());
+
+        String json = "{ \"userName\": \"employee\", \"password\": \"password\" }";
+
+        mvc.perform(post("/api/login")
+                .contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/users"))
+                .andExpect(status().isOk());
+    }
+
+//    Tests for when using login form
+//
+//    @Test
+//    public void redirectsToLoginForm() throws Exception {
+//        mvc.perform(get("/api/users"))
+//                .andExpect(status().is3xxRedirection())
+//                .andExpect(redirectedUrlPattern("**/login"));
+//    }
+//
+//    @Test
+//    public void canLoginWithCorrectPassword() throws Exception {
+//        mvc.perform(formLogin("/login").user("employee").password("password"))
+//                .andExpect(status().is3xxRedirection())
+//                .andExpect(redirectedUrl("/"));
+//
+//        mvc.perform(formLogin("/login").user("employee").password("wrong_pass"))
+//                .andExpect(status().is3xxRedirection())
+//                .andExpect(redirectedUrl("/login?error"));
+//    }
 }
